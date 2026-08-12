@@ -15,11 +15,8 @@ services:
     name: databound-backend
     plan: free
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerfilePath: backend/Dockerfile
     region: oregon
-    buildCommand: ""
-    startCommand: ""
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -48,12 +45,6 @@ services:
       - key: ENVIRONMENT
         value: production
     healthCheckPath: /api/health
-    domains:
-      - key: API_URL
-    headers:
-      - path: /api/*
-        name: Access-Control-Allow-Origin
-        value: "*"
     depends_on:
       - databound-db
 
@@ -62,11 +53,8 @@ services:
     name: databound-frontend
     plan: free
     runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
+    dockerfilePath: frontend/Dockerfile
     region: oregon
-    buildCommand: ""
-    startCommand: ""
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -74,7 +62,5 @@ services:
           type: web
           property: url
     healthCheckPath: /
-    domains:
-      - key: APP_URL
     depends_on:
       - databound-backend
