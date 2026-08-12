@@ -1,0 +1,163 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 40px 20px;
+  text-align: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.header h1 {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.header p {
+  font-size: 1.1em;
+  opacity: 0.95;
+}
+
+.main {
+  padding: 40px 20px;
+  display: grid;
+  gap: 30px;
+  background: white;
+}
+
+.status-card,
+.features-card,
+.info-card,
+.next-steps {
+  padding: 25px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.status-card h2,
+.features-card h2,
+.info-card h2,
+.next-steps h2 {
+  font-size: 1.5em;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background: white;
+  border-radius: 6px;
+  font-weight: 500;
+  margin: 10px 0;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-indicator.connected {
+  color: #10b981;
+}
+
+.status-indicator.connected .dot {
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.disconnected {
+  color: #ef4444;
+}
+
+.status-indicator.disconnected .dot {
+  background: #ef4444;
+}
+
+.status-indicator.loading {
+  color: #f59e0b;
+}
+
+.status-indicator.loading .dot {
+  background: #f59e0b;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.error-message {
+  padding: 12px 15px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  color: #c33;
+  margin-top: 10px;
+}
+
+.welcome-message {
+  padding: 15px;
+  background: #efe;
+  border: 1px solid #cfc;
+  border-radius: 6px;
+  color: #3c3;
+  margin-top: 10px;
+}
+
+.features-card ul,
+.info-card ul {
+  list-style: none;
+}
+
+.features-card li,
+.info-card li {
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.features-card li:last-child,
+.info-card li:last-child {
+  border-bottom: none;
+}
+
+.info-card a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.info-card a:hover {
+  text-decoration: underline;
+}
+
+.next-steps {
+  background: #f0f4ff;
+  border: 1px solid #d0d8ff;
+}
+
+.footer {
+  background: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  border-radius: 0 0 8px 8px;
+}
+
+@media (max-width: 600px) {
+  .header h1 {
+    font-size: 1.8em;
+  }
+  .main {
+    padding: 20px;
+  }
+}
