@@ -12,13 +12,12 @@ This is not "chat with a PDF." The core guarantee of the product is:
 
 ---
 
-## Status: Phase 1 — Project Foundation ✅
+## Status: Phase 2 — Authentication ✅
 
-This repository is being built in phases (see [Development Roadmap](#development-roadmap)
-below). Phase 1 sets up the skeleton: FastAPI backend, React frontend,
-PostgreSQL, Docker Compose, and a working health check proving the whole
-stack talks to itself correctly. No auth, uploads, or AI features exist
-yet — those arrive in Phases 2 onward.
+Phase 1 set up the skeleton. Phase 2 adds real accounts: registration,
+login, JWT-based sessions, and the `get_current_user` dependency that
+every future user-owned resource (documents, notes, bookmarks, ...) will
+build on for ownership checks.
 
 ## Problem Statement
 
@@ -279,17 +278,21 @@ Key ones for Phase 1:
 | `LLM_API_KEY`   | Provider API key for the LLM (Phase 5+)       |
 | `VITE_API_BASE_URL` | Backend URL the frontend calls          |
 
-## API Documentation (Phase 1)
+## API Documentation
 
-| Method | Path          | Description                                  |
-|--------|---------------|-----------------------------------------------|
-| GET    | `/`           | API root — confirms the service is up         |
-| GET    | `/api/health` | Health check; also confirms DB connectivity   |
+| Method | Path              | Auth required | Description                                  |
+|--------|-------------------|:--------------:|-----------------------------------------------|
+| GET    | `/`               | No             | API root — confirms the service is up         |
+| GET    | `/api/health`     | No             | Health check; also confirms DB connectivity   |
+| POST   | `/api/auth/register` | No          | Create an account, returns a JWT + user info  |
+| POST   | `/api/auth/login`    | No          | Exchange email+password for a JWT             |
+| GET    | `/api/auth/me`       | Yes         | Return the currently logged-in user           |
 
 Full interactive docs are always available at `/docs` (Swagger) while the
-backend is running. Later phases add auth, document, question, note,
-bookmark, summary, comparison, and study endpoints — the full target list
-is in [`docs/architecture.md`](docs/architecture.md).
+backend is running — including a working "Authorize" button for the two
+protected-route flow once you've logged in. Later phases add document,
+question, note, bookmark, summary, comparison, and study endpoints — the
+full target list is in [`docs/architecture.md`](docs/architecture.md).
 
 ## Testing
 
@@ -298,15 +301,18 @@ cd backend
 pytest
 ```
 
-Phase 1 includes a smoke test for `/` and `/api/health`. Every later phase
-adds tests under `backend/tests/`, including — critically — explicit
-hallucination tests once question-answering exists (Phase 6).
+Phase 2 includes the health check smoke tests plus a full auth test suite
+(registration, duplicate email, weak password, correct/incorrect login,
+missing/invalid tokens, and the "me" endpoint) — 11 tests total. Every
+later phase adds more, including — critically — explicit hallucination
+tests once question-answering exists (Phase 6).
 
 ## Development Roadmap
 
-- [x] **Phase 1 — Project Foundation** (this state): structure, FastAPI,
-      React, PostgreSQL, Docker, health check, basic frontend
-- [ ] Phase 2 — Authentication
+- [x] **Phase 1 — Project Foundation**: structure, FastAPI, React,
+      PostgreSQL, Docker, health check, basic frontend
+- [x] **Phase 2 — Authentication** (this state): registration, login,
+      JWT sessions, `get_current_user` dependency, protected frontend routes
 - [ ] Phase 3 — Document Management (upload, TXT/PDF/CSV, collections)
 - [ ] Phase 4 — Retrieval (chunking, embeddings, pgvector)
 - [ ] Phase 5 — Core Question Answering
@@ -320,11 +326,17 @@ hallucination tests once question-answering exists (Phase 6).
 - [ ] Phase 13 — Docker & Deployment hardening
 - [ ] Phase 14 — Documentation
 
-## Limitations (current, Phase 1)
+## Limitations (current, Phase 2)
 
-- No authentication yet — there is no concept of a "user" in the database.
-- No document upload or AI features yet — this phase only proves the
-  frontend, backend, and database can talk to each other.
+- Accounts exist and routes can be protected, but no other resource
+  (documents, notes, etc.) exists yet to actually apply ownership checks
+  to — that starts in Phase 3.
+- Table creation uses `Base.metadata.create_all()` on startup rather than
+  real migrations. Fine for now; a schema change once real data exists
+  will need Alembic, tracked for a later phase.
+- JWTs are the only auth mechanism — no refresh tokens, no "remember me"
+  vs. session-only distinction, no email verification, no password reset
+  flow yet.
 - `pgvector` extension is available in the Postgres image but not yet used
   by any table (arrives in Phase 4).
 

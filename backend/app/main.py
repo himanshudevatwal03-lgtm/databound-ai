@@ -14,11 +14,29 @@ gets its own router module under app/api/, and we simply include it here.
 This keeps main.py from turning into a 2000-line file.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health
+from app.api import auth, health
+from app.database.session import Base, engine
+from app import models  # noqa: F401 — registers models with Base.metadata
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Runs once at startup: creates any tables that don't exist yet, based
+    on every model imported via app.models. This is a Phase 2 shortcut —
+    fine for early development, but a real migration tool (Alembic) is
+    the right call once the schema needs to evolve without dropping data.
+    Tracked for a later phase.
+    """
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -27,7 +45,8 @@ app = FastAPI(
         "Answers are generated only from user-provided documents, with "
         "verifiable source citations."
     ),
-    version="0.1.0",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 # CORS (Cross-Origin Resource Sharing): the React dev server runs on
@@ -42,8 +61,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Every route in health.py is mounted under /api (e.g. /api/health).
+
+
+# Every route in health.py/auth.py is mounted under /api
+# (e.g. /api/health, /api/auth/login).
 app.include_router(health.router, prefix=settings.API_V1_PREFIX)
+app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

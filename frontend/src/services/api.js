@@ -6,10 +6,10 @@
  * Why this file exists:
  * If every component called `fetch(...)` directly, the base URL, headers,
  * and error handling would be duplicated everywhere and painful to change.
- * Instead, components import small functions like `checkHealth()` from
- * here. Later phases will add `login()`, `uploadDocument()`, `askQuestion()`
- * etc. to this same file (or split into api/auth.js, api/documents.js, etc.
- * as it grows).
+ * Instead, components import small functions like `checkHealth()` or
+ * `login()` from here. As more features arrive (documents, chat, notes),
+ * this file is a natural place to split into api/auth.js, api/documents.js,
+ * etc. — for now it's small enough to stay together.
  */
 
 // In Docker Compose, the frontend container talks to the backend container
@@ -19,20 +19,39 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 /**
- * Generic request helper. Throws on non-2xx responses so callers can
- * use try/catch instead of checking response.ok everywhere.
+ * Generic request helper. Throws on non-2xx responses so callers can use
+ * try/catch instead of checking response.ok everywhere. FastAPI's error
+ * responses look like {"detail": "some message"} (or a list of validation
+ * errors for 422s) — this pulls out a readable message either way.
  */
 async function request(path, options = {}) {
+  const token = getToken();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`API error ${response.status}: ${errorBody}`);
+    let message = `Request failed (${response.status})`;
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      } else if (Array.isArray(body.detail)) {
+        // Pydantic validation errors: an array of {loc, msg, ...}
+        message = body.detail.map((e) => e.msg).join("; ");
+      }
+    } catch {
+      // Response wasn't JSON — fall back to the generic message above.
+    }
+    throw new Error(message);
   }
 
+  if (response.status === 204) return null;
   return response.json();
 }
 
@@ -41,4 +60,47 @@ export function checkHealth() {
   return request("/api/health");
 }
 
+// --- Auth token storage ---
+//
+// The JWT is kept in localStorage so a page refresh doesn't log the user
+// out. It's sent as a Bearer token on every request via the `request()`
+// helper above, rather than attached to each call site individually.
+const TOKEN_KEY = "databound_token";
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// --- Auth endpoints ---
+
+/** Registers a new account. Returns { access_token, token_type, user }. */
+export function register({ name, email, password }) {
+  return request("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+/** Logs in an existing account. Returns { access_token, token_type, user }. */
+export function login({ email, password }) {
+  return request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+/** Returns the currently logged-in user, based on the stored token. */
+export function getMe() {
+  return request("/api/auth/me");
+}
+
 export { API_BASE_URL };
+
