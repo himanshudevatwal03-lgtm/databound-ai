@@ -1,65 +1,54 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: pgvector/pgvector:pg16-latest
-    container_name: databound_postgres
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
     environment:
-      POSTGRES_USER: databound
-      POSTGRES_PASSWORD: databound
-      POSTGRES_DB: databound_db
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://databound:password@db:5432/databound
+      - JWT_SECRET_KEY=your-secret-key
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - db
+    networks:
+      - databound-network
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - backend
+    networks:
+      - databound-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=databound
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=databound
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U databound"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: databound_backend
-    ports:
-      - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://databound:databound@postgres:5432/databound_db
-      LLM_API_KEY: ${LLM_API_KEY}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
-      TOP_K: ${TOP_K:-5}
-      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.5}
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: databound_frontend
-    ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:8000
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: npm run dev -- --host
+    networks:
+      - databound-network
 
 volumes:
   postgres_data:
+
+networks:
+  databound-network:
+    driver: bridge
