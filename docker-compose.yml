@@ -1,54 +1,69 @@
-version: '3.8'
+version: "3.9"
+
+# DataBound AI — local development stack.
+#
+# Three services:
+#   postgres  — the database (using the pgvector image so Phase 4's vector
+#               search extension is available with no later migration pain)
+#   backend   — FastAPI, auto-reloads on code changes via the bind mount
+#   frontend  — Vite dev server, also auto-reloads on code changes
+#
+# Run with: docker compose up --build
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: databound-postgres
+    restart: unless-stopped
     environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://databound:password@db:5432/databound
-      - JWT_SECRET_KEY=your-secret-key
-    volumes:
-      - ./backend:/app/backend
-    depends_on:
-      - db
-    networks:
-      - databound-network
-
-  frontend:
-    build:
-      context: frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:5173"
-    environment:
-      - VITE_API_URL=http://localhost:5000/api
-    volumes:
-      - ./frontend:/app/frontend
-    depends_on:
-      - backend
-    networks:
-      - databound-network
-
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=databound
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=databound
+      POSTGRES_USER: databound
+      POSTGRES_PASSWORD: databound
+      POSTGRES_DB: databound
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - databound-network
+      - databound_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U databound -d databound"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: databound-backend
+    restart: unless-stopped
+    # --reload is a local-dev convenience (auto-restarts on code changes
+    # thanks to the bind mount below). The image's own CMD, used in
+    # production, omits it.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://databound:databound@postgres:5432/databound
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: databound-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
-  postgres_data:
-
-networks:
-  databound-network:
-    driver: bridge
+  databound_pg_data:

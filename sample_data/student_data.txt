@@ -1,8 +1,6 @@
 Rahul is an MCA student at NIT Trichy.
 Rahul's CGPA is 8.4.
-Rahul completed his bachelor's degree in BCA from Banasthali University.
-Rahul is currently studying Data Structures and Algorithms.
-Rahul's favorite programming language is Python.
-Rahul plans to specialize in Machine Learning.
-Rahul has completed internships at TCS and Infosys.
-Rahul's expected graduation date is June 2025.
+Rahul completed his bachelor's degree in BCA.
+Rahul is currently studying Data Structures.
+Rahul's favorite subject is Database Management Systems.
+Rahul is 22 years old.

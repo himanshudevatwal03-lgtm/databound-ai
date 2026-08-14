@@ -1,58 +1,300 @@
+/*
+  index.css — DataBound AI design tokens
+
+  Design direction: this is a "verification" product — its entire premise
+  is that every answer is checked against evidence before it's shown. The
+  visual language leans into that: a cool paper/slate canvas (not the
+  common warm-cream AI look), an ink-navy type color, a deep teal
+  "verified" accent used for confirmed/grounded states, and a restrained
+  amber used only for gaps/warnings (unanswered questions, missing data).
+  A serif display face gives headings a "documented record" feel; a plain
+  sans carries body text and UI; a mono face is reserved for citation/
+  source snippets, so quoted source text always looks visually distinct
+  from generated prose.
+*/
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Color tokens */
+  --color-canvas: #f2f4f3;
+  --color-surface: #ffffff;
+  --color-ink: #171b1a;
+  --color-ink-muted: #565f5c;
+  --color-border: #dde2e0;
+
+  --color-verified: #0d6b5c;
+  --color-verified-bg: #e5f3ef;
+  --color-gap: #b5762e;
+  --color-gap-bg: #fbf0e3;
+  --color-danger: #ac3b3b;
+  --color-danger-bg: #fbe9e9;
+
+  /* Type tokens */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
+
+  /* Layout tokens */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgba(23, 27, 26, 0.04), 0 4px 16px rgba(23, 27, 26, 0.06);
+  --max-width: 1080px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
   line-height: 1.5;
-  font-weight: 400;
+}
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0 0 0.5em 0;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0 0 1em 0;
 }
 
 a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  color: var(--color-verified);
+  text-decoration: none;
 }
 
 a:hover {
-  color: #535bf2;
+  text-decoration: underline;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  font-family: var(--font-body);
   cursor: pointer;
-  transition: border-color 0.25s;
 }
 
-button:hover {
-  border-color: #646cff;
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-verified);
+  outline-offset: 2px;
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+code,
+.mono {
+  font-family: var(--font-mono);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* --- Navbar --- */
+.navbar {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.brand-seal {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-verified);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  font-size: 0.95rem;
+  color: var(--color-ink-muted);
+}
+
+/* --- Main / Hero --- */
+main {
+  flex: 1;
+}
+
+.hero {
+  padding: 72px 24px 48px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-verified);
+  margin-bottom: 14px;
+}
+
+.hero h1 {
+  font-size: 2.75rem;
+  max-width: 640px;
+}
+
+.hero-sub {
+  font-size: 1.1rem;
+  color: var(--color-ink-muted);
+  max-width: 560px;
+}
+
+/* --- Cards --- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+}
+
+.status-card {
+  max-width: 480px;
+  margin-top: 24px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.ok {
+  background: var(--color-verified);
+}
+
+.status-dot.error {
+  background: var(--color-danger);
+}
+
+.status-dot.pending {
+  background: var(--color-gap);
+}
+
+.status-label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+
+.status-value {
+  font-weight: 600;
+}
+
+/* --- Loading spinner --- */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-verified);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
   }
-  a:hover {
-    color: #747bff;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+/* --- Error message --- */
+.error-message {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 0.9rem;
+}
+
+/* --- Footer --- */
+footer {
+  border-top: 1px solid var(--color-border);
+  padding: 24px;
+  text-align: center;
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .hero h1 {
+    font-size: 2rem;
+  }
+  .nav-links {
+    display: none;
   }
 }

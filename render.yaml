@@ -1,66 +1,71 @@
-services:
-  # PostgreSQL Database
-  - type: pserv
-    name: databound-db
-    plan: free
-    ipAllowList: []
-    postgresSQLVersion: "16"
-    databaseName: databound_db
-    databaseUser: databound
-    preStartCommand: ""
-    region: oregon
+# render.yaml — Render Blueprint for DataBound AI
+#
+# This defines the whole stack as code: a managed Postgres instance, the
+# FastAPI backend as a Docker web service, and the React frontend as a
+# static site. Render reads this file when you create a "Blueprint" from
+# your repo and provisions all three together.
+#
+# Docs: https://render.com/docs/blueprint-spec
 
-  # Backend API Service
+databases:
+  - name: databound-postgres
+    databaseName: databound
+    user: databound
+    plan: free
+    # pgvector is available as an extension on Render Postgres; it gets
+    # enabled with `CREATE EXTENSION vector;` once Phase 4 needs it.
+
+services:
+  # --- Backend: FastAPI, built from backend/Dockerfile ---
   - type: web
     name: databound-backend
-    plan: free
     runtime: docker
-    dockerfilePath: backend/Dockerfile
-    region: oregon
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: databound-db
+          name: databound-postgres
           property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # CORS_ORIGINS is set after the frontend's URL is known — see
+      # deployment steps in README.md. Comma-separated is fine, e.g.:
+      #   https://databound-frontend.onrender.com
+      - key: CORS_ORIGINS
+        value: http://localhost:5173
       - key: LLM_API_KEY
         sync: false
-      - key: LLM_PROVIDER
-        value: openai
       - key: LLM_MODEL
-        value: gpt-4
+        value: claude-sonnet-4-6
       - key: EMBEDDING_MODEL
         value: text-embedding-3-small
-      - key: EMBEDDING_PROVIDER
-        value: openai
       - key: TOP_K
         value: "5"
       - key: SIMILARITY_THRESHOLD
-        value: "0.5"
+        value: "0.75"
       - key: MAX_FILE_SIZE
-        value: "52428800"
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_ALGORITHM
-        value: HS256
-      - key: ENVIRONMENT
-        value: production
-    healthCheckPath: /api/health
-    depends_on:
-      - databound-db
+        value: "20971520"
 
-  # Frontend Service
+  # --- Frontend: static build served by Render's CDN ---
   - type: web
     name: databound-frontend
-    plan: free
-    runtime: docker
-    dockerfilePath: frontend/Dockerfile
-    region: oregon
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
     envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: databound-backend
-          type: web
-          property: url
-    healthCheckPath: /
-    depends_on:
-      - databound-backend
+      # Baked into the build at build time (Vite inlines import.meta.env.*),
+      # so this must point at the backend's Render URL, not localhost.
+      # Update it once you know the backend's actual URL — see README.md.
+      - key: VITE_API_BASE_URL
+        value: https://databound-backend.onrender.com
+    routes:
+      # SPA fallback: React Router handles client-side paths like /documents,
+      # so any unmatched path should still serve index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html

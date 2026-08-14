@@ -1,46 +1,56 @@
-from fastapi import FastAPI, Depends
+"""
+main.py
+
+The FastAPI application entrypoint.
+
+This is the file `uvicorn` points to when the backend container starts
+(see the Dockerfile CMD). Its job in Phase 1 is deliberately small:
+  1. create the FastAPI app
+  2. configure CORS so the React frontend (a different origin) can call it
+  3. register the health-check router
+
+As later phases add auth, documents, questions, notes, etc., each feature
+gets its own router module under app/api/, and we simply include it here.
+This keeps main.py from turning into a 2000-line file.
+"""
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from app.database import engine, Base, get_db
-from app.config import get_settings
-from app.api.routes import health
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+from app.config import settings
+from app.api import health
 
-# Initialize FastAPI app
 app = FastAPI(
-    title="DataBound AI",
-    description="Data-grounded question-answering platform",
+    title=settings.APP_NAME,
+    description=(
+        "DataBound AI — a data-grounded question-answering platform. "
+        "Answers are generated only from user-provided documents, with "
+        "verifiable source citations."
+    ),
     version="0.1.0",
 )
 
-# Get settings
-settings = get_settings()
-
-# Configure CORS
+# CORS (Cross-Origin Resource Sharing): the React dev server runs on
+# http://localhost:5173 while the API runs on a different port. Browsers
+# block cross-origin requests by default, so we explicitly allow the
+# frontend's origin(s) here.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(health.router)
+# Every route in health.py is mounted under /api (e.g. /api/health).
+app.include_router(health.router, prefix=settings.API_V1_PREFIX)
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize on startup"""
-    print("🚀 DataBound AI Backend Starting...")
-    print(f"Environment: {settings.environment}")
-    print(f"Database: {settings.database_url}")
-    print(f"LLM Provider: {settings.llm_provider}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    print("👋 DataBound AI Backend Shutting Down...")
+@app.get("/")
+def root():
+    """Simple root endpoint so visiting the API base URL isn't a 404."""
+    return {
+        "message": f"{settings.APP_NAME} API is running",
+        "docs": "/docs",
+        "health": f"{settings.API_V1_PREFIX}/health",
+    }

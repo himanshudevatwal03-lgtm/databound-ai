@@ -1,28 +1,12 @@
-# Sample Data for DataBound AI Testing
+# Sample Data
 
-This directory contains sample data files for testing the application.
+Two plain-text samples are included now so the anti-hallucination behavior
+described in the main README can be tested manually as soon as retrieval
+exists (Phase 4/5):
 
-## Files
+- `student_data.txt`
+- `company_data.txt`
 
-### student_data.txt
-Sample student information for testing text extraction and retrieval.
-
-### company_data.txt
-Sample company information with employee details.
-
-### employees.csv
-Sample employee dataset for testing CSV processing.
-
-### project_requirements.pdf
-Sample PDF document for testing PDF extraction.
-
-## Usage
-
-Upload these files to DataBound AI to test:
-- Document upload
-- Text extraction
-- Chunking
-- Embedding generation
-- Semantic search
-- Question answering
-- Source citation
+`employees.csv` and `project_requirements.pdf` (plus a generator script for
+the PDF) will be added in **Phase 3 — Document Management**, once file
+upload and per-type processing exist to actually make use of them.

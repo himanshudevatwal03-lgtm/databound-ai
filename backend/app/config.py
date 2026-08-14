@@ -1,49 +1,91 @@
-from pydantic_settings import BaseSettings
+"""
+config.py
+
+Centralized application configuration.
+
+Why this file exists:
+FastAPI apps need settings (database URL, secrets, model names, etc.) that
+change between environments (local dev, Docker, production). Hard-coding
+these values is a security risk and makes the app inflexible. Instead, we
+read everything from environment variables using Pydantic's BaseSettings,
+which gives us:
+  - automatic type validation (e.g. TOP_K must be an int)
+  - a single source of truth for configuration
+  - sensible defaults for local development
+
+Every other part of the backend imports `settings` from this file instead
+of calling os.environ directly.
+"""
+
 from functools import lru_cache
+from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables"""
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
-    # Database
-    database_url: str = "postgresql://databound:databound@localhost:5432/databound_db"
+    # --- App metadata ---
+    APP_NAME: str = "DataBound AI"
+    APP_ENV: str = Field(default="development")
+    API_V1_PREFIX: str = "/api"
 
-    # LLM Configuration
-    llm_api_key: str = ""
-    llm_provider: str = "openai"
-    llm_model: str = "gpt-4"
+    # --- Database ---
+    DATABASE_URL: str = Field(
+        default="postgresql://databound:databound@localhost:5432/databound",
+        description="SQLAlchemy-compatible PostgreSQL connection string",
+    )
 
-    # Embedding Configuration
-    embedding_model: str = "text-embedding-3-small"
-    embedding_provider: str = "openai"
+    # --- Security / Auth (used starting Phase 2, defined now so .env is stable) ---
+    JWT_SECRET: str = Field(default="change-this-secret-in-production")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
-    # RAG Configuration
-    top_k: int = 5
-    similarity_threshold: float = 0.5
+    # --- AI / LLM provider abstraction (used starting Phase 5) ---
+    LLM_API_KEY: str = Field(default="")
+    LLM_MODEL: str = Field(default="claude-sonnet-4-6")
+    EMBEDDING_MODEL: str = Field(default="text-embedding-3-small")
 
-    # File Upload
-    max_file_size: int = 52428800  # 50MB
+    # --- Retrieval tuning (used starting Phase 4/5) ---
+    TOP_K: int = 5
+    SIMILARITY_THRESHOLD: float = 0.75
 
-    # JWT
-    jwt_secret: str = "your-secret-key-change-this-in-production"
-    jwt_algorithm: str = "HS256"
-    jwt_expiration_hours: int = 24
+    # --- File handling ---
+    MAX_FILE_SIZE: int = 20 * 1024 * 1024  # 20 MB
+    # Stored as a plain comma-separated string (not List[str]): pydantic-
+    # settings tries to JSON-decode List[...] fields read from env vars
+    # before any custom validator gets a chance to run, which breaks on
+    # a plain comma-separated value like Render's env var UI encourages.
+    # Use the .allowed_file_extensions_list property below instead of this
+    # field directly.
+    ALLOWED_FILE_EXTENSIONS: str = ".txt,.pdf,.csv"
 
-    # API URLs
-    backend_url: str = "http://localhost:8000"
-    backend_port: int = 8000
-    frontend_url: str = "http://localhost:5173"
-    frontend_port: int = 5173
+    # --- CORS ---
+    # Same reasoning as above — plain comma-separated string, e.g.:
+    #   http://localhost:5173,https://databound-frontend.onrender.com
+    # Use .cors_origins_list below instead of this field directly.
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
-    # Environment
-    environment: str = "development"
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    @property
+    def allowed_file_extensions_list(self) -> List[str]:
+        return [ext.strip() for ext in self.ALLOWED_FILE_EXTENSIONS.split(",") if ext.strip()]
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
-    """Get cached settings instance"""
+    """
+    Returns a cached Settings instance.
+
+    lru_cache ensures we parse environment variables only once per process,
+    rather than re-reading and re-validating them on every request.
+    """
     return Settings()
+
+
+settings = get_settings()

@@ -1,50 +1,23 @@
-import { useState, useEffect } from 'react'
-import './App.css'
-import api from './services/api'
+import { Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 
-function App() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      const response = await api.get('/health')
-      setData(response.data)
-      setError(null)
-    } catch (err) {
-      setError(err.message)
-      setData(null)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+/**
+ * App
+ *
+ * The routing shell. Phase 1 only registers "/" (Dashboard). Later phases
+ * add /login, /register, /documents, /collections, /chat, /notes,
+ * /bookmarks, /study, /flashcards, /knowledge-gaps, /settings — each as
+ * its own <Route> pointing at a page component under src/pages/.
+ */
+export default function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Welcome to DataBound AI</h1>
-        <p>Full-Stack Application</p>
-      </header>
-      
-      <main className="App-main">
-        {loading && <p>Loading...</p>}
-        {error && <p className="error">Error: {error}</p>}
-        {data && (
-          <div className="status">
-            <h2>Server Status</h2>
-            <p><strong>Status:</strong> {data.status}</p>
-            <p><strong>Message:</strong> {data.message}</p>
-          </div>
-        )}
-      </main>
-    </div>
-  )
+    <>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+      </Routes>
+      <footer>DataBound AI — Phase 1: Project Foundation</footer>
+    </>
+  );
 }
-
-export default App
