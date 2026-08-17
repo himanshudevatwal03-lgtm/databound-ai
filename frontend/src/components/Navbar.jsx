@@ -21,7 +21,7 @@ export default function Navbar() {
           DataBound AI
         </Link>
         <nav className="nav-links">
-          <span>Documents</span>
+          <Link to="/documents">Documents</Link>
           <span>Chat</span>
           <span>Notes</span>
           <span>Study</span>

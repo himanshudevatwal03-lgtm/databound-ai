@@ -102,5 +102,69 @@ export function getMe() {
   return request("/api/auth/me");
 }
 
+// --- Collections ---
+
+export function listCollections() {
+  return request("/api/collections");
+}
+
+export function createCollection({ name, description }) {
+  return request("/api/collections", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export function deleteCollection(collectionId) {
+  return request(`/api/collections/${collectionId}`, { method: "DELETE" });
+}
+
+// --- Documents ---
+
+export function listDocuments(collectionId) {
+  const query = collectionId ? `?collection_id=${collectionId}` : "";
+  return request(`/api/documents${query}`);
+}
+
+export function getDocument(documentId) {
+  return request(`/api/documents/${documentId}`);
+}
+
+export function deleteDocument(documentId) {
+  return request(`/api/documents/${documentId}`, { method: "DELETE" });
+}
+
+/**
+ * Uploads a file. Doesn't use the generic request() helper because file
+ * uploads need multipart/form-data (the browser sets the correct
+ * boundary header automatically when given a FormData body — setting
+ * Content-Type manually here would actually break it).
+ */
+export async function uploadDocument(file, collectionId) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const query = collectionId ? `?collection_id=${collectionId}` : "";
+  const response = await fetch(`${API_BASE_URL}/api/documents/upload${query}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = `Upload failed (${response.status})`;
+    try {
+      const body = await response.json();
+      if (typeof body.detail === "string") message = body.detail;
+    } catch {
+      // fall back to generic message
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
 export { API_BASE_URL };
 

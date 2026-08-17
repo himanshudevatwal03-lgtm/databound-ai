@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { checkHealth } from "../services/api.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import ErrorMessage from "../components/ErrorMessage.jsx";
@@ -79,6 +80,10 @@ export default function Dashboard() {
             </>
           )}
         </div>
+
+        <Link to="/documents" className="btn-primary" style={{ display: "inline-block", marginTop: 24 }}>
+          Go to My Data →
+        </Link>
       </section>
     </main>
   );

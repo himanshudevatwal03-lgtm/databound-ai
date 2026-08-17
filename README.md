@@ -12,12 +12,13 @@ This is not "chat with a PDF." The core guarantee of the product is:
 
 ---
 
-## Status: Phase 2 — Authentication ✅
+## Status: Phase 3 — Document Management ✅
 
-Phase 1 set up the skeleton. Phase 2 adds real accounts: registration,
-login, JWT-based sessions, and the `get_current_user` dependency that
-every future user-owned resource (documents, notes, bookmarks, ...) will
-build on for ownership checks.
+Phase 1 set up the skeleton, Phase 2 added accounts. Phase 3 adds the
+"My Data" screen: upload TXT/PDF/CSV files, organize them into
+collections, and see what got extracted from each one (or why processing
+failed). This is the last phase before retrieval/AI features begin —
+Phase 4 turns this extracted content into searchable chunks.
 
 ## Problem Statement
 
@@ -124,11 +125,11 @@ Phase 2, `documents`/`document_chunks` in Phases 3–4, `notes`/`bookmarks`/
 databound-ai/
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # Navbar, LoadingSpinner, ErrorMessage, ...
-│   │   ├── pages/         # Dashboard, ...
+│   │   ├── components/   # Navbar, UploadBox, DocumentCard, CollectionCard, Modal, ...
+│   │   ├── pages/         # Dashboard, Documents, Login, Register
 │   │   ├── services/      # api.js — all backend calls live here
+│   │   ├── context/        # AuthContext
 │   │   ├── hooks/
-│   │   ├── context/
 │   │   ├── utils/
 │   │   ├── App.jsx
 │   │   └── main.jsx
@@ -142,17 +143,17 @@ databound-ai/
 │   │   ├── main.py         # FastAPI app + router registration
 │   │   ├── config.py       # environment-driven settings
 │   │   ├── database/       # SQLAlchemy engine/session
-│   │   ├── models/         # ORM models (added from Phase 2 onward)
+│   │   ├── models/         # User, Collection, Document
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── api/            # route modules (health.py so far)
-│   │   ├── services/       # business logic (added per phase)
-│   │   ├── core/           # security, auth helpers (Phase 2+)
+│   │   ├── api/            # health, auth, collections, documents
+│   │   ├── services/       # document_processing.py (validation + extraction)
+│   │   ├── core/           # security.py, deps.py (auth)
 │   │   └── utils/
 │   ├── tests/
 │   ├── requirements.txt
 │   └── Dockerfile
 │
-├── sample_data/            # TXT samples now; CSV/PDF added in Phase 3
+├── sample_data/            # TXT, CSV, and a generated multi-page PDF
 ├── docs/
 │   └── architecture.md
 ├── .env.example
@@ -280,19 +281,26 @@ Key ones for Phase 1:
 
 ## API Documentation
 
-| Method | Path              | Auth required | Description                                  |
-|--------|-------------------|:--------------:|-----------------------------------------------|
-| GET    | `/`               | No             | API root — confirms the service is up         |
-| GET    | `/api/health`     | No             | Health check; also confirms DB connectivity   |
-| POST   | `/api/auth/register` | No          | Create an account, returns a JWT + user info  |
-| POST   | `/api/auth/login`    | No          | Exchange email+password for a JWT             |
-| GET    | `/api/auth/me`       | Yes         | Return the currently logged-in user           |
+| Method | Path                  | Auth required | Description                                  |
+|--------|-----------------------|:--------------:|-----------------------------------------------|
+| GET    | `/`                   | No             | API root — confirms the service is up         |
+| GET    | `/api/health`         | No             | Health check; also confirms DB connectivity   |
+| POST   | `/api/auth/register`  | No          | Create an account, returns a JWT + user info  |
+| POST   | `/api/auth/login`     | No          | Exchange email+password for a JWT             |
+| GET    | `/api/auth/me`        | Yes         | Return the currently logged-in user           |
+| POST   | `/api/collections`    | Yes         | Create a collection                           |
+| GET    | `/api/collections`    | Yes         | List your collections, with document counts   |
+| DELETE | `/api/collections/{id}` | Yes       | Delete a collection (unassigns its documents) |
+| POST   | `/api/documents/upload` | Yes       | Upload + process a TXT/PDF/CSV file           |
+| GET    | `/api/documents`      | Yes         | List your documents (optional `?collection_id=`) |
+| GET    | `/api/documents/{id}` | Yes         | Get one document's metadata + preview         |
+| DELETE | `/api/documents/{id}` | Yes         | Delete a document                             |
 
 Full interactive docs are always available at `/docs` (Swagger) while the
-backend is running — including a working "Authorize" button for the two
-protected-route flow once you've logged in. Later phases add document,
-question, note, bookmark, summary, comparison, and study endpoints — the
-full target list is in [`docs/architecture.md`](docs/architecture.md).
+backend is running — including a working "Authorize" button so you can
+test the protected routes directly. Later phases add retrieval, question,
+note, bookmark, summary, comparison, and study endpoints — the full
+target list is in [`docs/architecture.md`](docs/architecture.md).
 
 ## Testing
 
@@ -301,19 +309,21 @@ cd backend
 pytest
 ```
 
-Phase 2 includes the health check smoke tests plus a full auth test suite
-(registration, duplicate email, weak password, correct/incorrect login,
-missing/invalid tokens, and the "me" endpoint) — 11 tests total. Every
-later phase adds more, including — critically — explicit hallucination
-tests once question-answering exists (Phase 6).
+28 tests total: health checks, the full auth suite, and Phase 3's
+document/collection tests — upload + extraction correctness for all
+three file types, every validation error (bad extension, empty, oversized,
+malformed CSV, corrupted/fake PDF), listing, deletion, and cross-user
+isolation. Every later phase adds more, including — critically — explicit
+hallucination tests once question-answering exists (Phase 6).
 
 ## Development Roadmap
 
 - [x] **Phase 1 — Project Foundation**: structure, FastAPI, React,
       PostgreSQL, Docker, health check, basic frontend
-- [x] **Phase 2 — Authentication** (this state): registration, login,
+- [x] **Phase 2 — Authentication**: registration, login,
       JWT sessions, `get_current_user` dependency, protected frontend routes
-- [ ] Phase 3 — Document Management (upload, TXT/PDF/CSV, collections)
+- [x] **Phase 3 — Document Management** (this state): upload,
+      TXT/PDF/CSV extraction, collections, document list/delete
 - [ ] Phase 4 — Retrieval (chunking, embeddings, pgvector)
 - [ ] Phase 5 — Core Question Answering
 - [ ] Phase 6 — Anti-Hallucination (validation + hallucination tests)
@@ -326,17 +336,21 @@ tests once question-answering exists (Phase 6).
 - [ ] Phase 13 — Docker & Deployment hardening
 - [ ] Phase 14 — Documentation
 
-## Limitations (current, Phase 2)
+## Limitations (current, Phase 3)
 
-- Accounts exist and routes can be protected, but no other resource
-  (documents, notes, etc.) exists yet to actually apply ownership checks
-  to — that starts in Phase 3.
+- Original uploaded files aren't kept — only their *extracted* content is
+  stored (see the comment at the top of `app/models/document.py` for why:
+  Render's disk is ephemeral, Postgres isn't). There's no "download my
+  original file" feature as a result.
+- Upload processing is synchronous (validate → extract → store, all in
+  one request). Fine for typical file sizes; a background job queue would
+  be the right upgrade if large files start making uploads feel slow.
+- No question-answering yet — documents are stored and processed, but
+  nothing can be asked about them until Phase 4 (chunking/embeddings) and
+  Phase 5 (the QA pipeline itself) exist.
 - Table creation uses `Base.metadata.create_all()` on startup rather than
-  real migrations. Fine for now; a schema change once real data exists
-  will need Alembic, tracked for a later phase.
-- JWTs are the only auth mechanism — no refresh tokens, no "remember me"
-  vs. session-only distinction, no email verification, no password reset
-  flow yet.
+  real migrations — tracked for a later phase once schema changes need to
+  preserve existing data.
 - `pgvector` extension is available in the Postgres image but not yet used
   by any table (arrives in Phase 4).
 

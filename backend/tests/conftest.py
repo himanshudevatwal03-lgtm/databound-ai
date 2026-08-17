@@ -54,3 +54,28 @@ def cleanup_users(db_session):
             synchronize_session=False
         )
         db_session.commit()
+
+
+@pytest.fixture
+def auth_client(client, cleanup_users):
+    """
+    Registers a fresh throwaway user and returns (client, auth_headers,
+    user_id) so tests for user-owned resources (documents, collections)
+    don't have to repeat the registration boilerplate. The user is
+    automatically cleaned up afterward via cleanup_users, which cascades
+    to delete any collections/documents it owns (ON DELETE CASCADE).
+    """
+    import uuid
+
+    email = f"test-{uuid.uuid4().hex[:8]}-authclient@example.com"
+    cleanup_users.append(email)
+
+    response = client.post(
+        "/api/auth/register",
+        json={"name": "Auth Fixture User", "email": email, "password": "supersecret123"},
+    )
+    token = response.json()["access_token"]
+    user_id = response.json()["user"]["id"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    return client, headers, user_id
