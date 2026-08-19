@@ -28,7 +28,7 @@ export default function Login() {
 
   return (
     <main>
-      <div className="container auth-page">
+      <div className="container auth-page animate-fade-in-up">
         <div className="card auth-card">
           <h2>Log in</h2>
           <p className="hero-sub" style={{ marginBottom: 20 }}>
@@ -62,7 +62,8 @@ export default function Login() {
 
             <ErrorMessage message={error} />
 
-            <button type="submit" className="btn-primary" disabled={submitting}>
+            <button type="submit" className="btn-primary btn-block" disabled={submitting}>
+              {submitting && <span className="btn-spinner" />}
               {submitting ? "Logging in..." : "Log in"}
             </button>
           </form>

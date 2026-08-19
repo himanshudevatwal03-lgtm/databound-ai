@@ -29,7 +29,7 @@ export default function Register() {
 
   return (
     <main>
-      <div className="container auth-page">
+      <div className="container auth-page animate-fade-in-up">
         <div className="card auth-card">
           <h2>Create your account</h2>
           <p className="hero-sub" style={{ marginBottom: 20 }}>
@@ -77,7 +77,8 @@ export default function Register() {
 
             <ErrorMessage message={error} />
 
-            <button type="submit" className="btn-primary" disabled={submitting}>
+            <button type="submit" className="btn-primary btn-block" disabled={submitting}>
+              {submitting && <span className="btn-spinner" />}
               {submitting ? "Creating account..." : "Create account"}
             </button>
           </form>

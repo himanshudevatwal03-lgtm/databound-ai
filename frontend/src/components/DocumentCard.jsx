@@ -21,7 +21,7 @@ function formatFileSize(bytes) {
  */
 export default function DocumentCard({ document, onDelete }) {
   return (
-    <div className="card document-card">
+    <div className="card document-card card-interactive">
       <div className="document-card-main">
         <div className="document-card-header">
           <span className={`status-dot ${document.status === "ready" ? "ok" : document.status === "failed" ? "error" : "pending"}`} />

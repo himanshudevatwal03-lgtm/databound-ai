@@ -40,6 +40,9 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --shadow-card: 0 1px 2px rgba(23, 27, 26, 0.04), 0 4px 16px rgba(23, 27, 26, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(23, 27, 26, 0.06), 0 10px 28px rgba(23, 27, 26, 0.1);
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --max-width: 1080px;
 }
 
@@ -188,6 +191,36 @@ code,
   color: var(--color-ink-muted);
   font-size: 0.9rem;
   padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color var(--transition-fast), transform 0.1s ease;
+}
+
+.btn-danger:hover {
+  background: #8f2f2f;
+}
+
+.btn-danger:active {
+  transform: scale(0.97);
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 .btn-text:hover {
@@ -203,11 +236,24 @@ code,
   padding: 10px 18px;
   font-size: 0.95rem;
   font-weight: 600;
-  transition: background-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color var(--transition-fast), transform 0.1s ease, box-shadow var(--transition-fast);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: #0a5648;
+  box-shadow: 0 2px 8px rgba(13, 107, 92, 0.25);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-block {
+  width: 100%;
 }
 
 .btn-primary:disabled {
@@ -324,6 +370,13 @@ main {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding: 24px;
+  transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+}
+
+.card-interactive:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+  border-color: #cdd6d3;
 }
 
 .status-card {
@@ -480,6 +533,7 @@ footer {
   font-size: 0.9rem;
   color: var(--color-ink-muted);
   margin-bottom: 2px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .collection-pill:hover {
@@ -525,8 +579,12 @@ footer {
   text-align: center;
   cursor: pointer;
   background: var(--color-surface);
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--transition-base), background-color var(--transition-base), transform var(--transition-base);
   margin-bottom: 20px;
+}
+
+.upload-box.drag-over {
+  transform: scale(1.01);
 }
 
 .upload-box:hover,
@@ -679,4 +737,349 @@ footer {
 
 .modal-close:hover {
   color: var(--color-ink);
+}
+
+/* --- Modal entrance animation --- */
+.modal-overlay {
+  animation: fade-in 0.15s ease;
+}
+
+.modal-card {
+  animation: modal-pop-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* --- Generic entrance animations, reused across pages/lists --- */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .modal-overlay,
+  .modal-card {
+    animation: none;
+  }
+}
+
+/* --- Toast notifications --- */
+.toast-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 200;
+  max-width: min(360px, calc(100vw - 40px));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-ink);
+  color: white;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(23, 27, 26, 0.25);
+  font-size: 0.88rem;
+  cursor: pointer;
+  animation: toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.toast-icon-success {
+  background: var(--color-verified);
+}
+
+.toast-icon-error {
+  background: var(--color-danger);
+}
+
+.toast-icon-info {
+  background: #4a5a68;
+}
+
+.toast-message {
+  line-height: 1.35;
+}
+
+/* --- Skeleton loading --- */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-border) 25%, #eceeed 37%, var(--color-border) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.skeleton-line {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-number {
+  display: inline-block;
+  height: 1.8rem;
+  width: 2.4rem;
+  vertical-align: middle;
+}
+
+.skeleton-row {
+  height: 20px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.skeleton-card {
+  height: 78px;
+  width: 100%;
+  margin-bottom: 12px;
+  border-radius: var(--radius-lg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* --- Dashboard --- */
+.dashboard-page {
+  padding: 40px 24px 64px;
+}
+
+.dashboard-header h1 {
+  font-size: 2.25rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 28px 0;
+}
+
+@media (max-width: 700px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stat-card {
+  padding: 20px;
+}
+
+.stat-card-value {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1;
+}
+
+.stat-card-verified .stat-card-value {
+  color: var(--color-verified);
+}
+
+.stat-card-danger .stat-card-value {
+  color: var(--color-danger);
+}
+
+.stat-card-label {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+}
+
+.dashboard-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.dashboard-recent h3 {
+  font-size: 1rem;
+  margin-bottom: 14px;
+}
+
+.recent-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-doc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
+.recent-doc-row:last-child {
+  border-bottom: none;
+}
+
+.recent-doc-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-doc-type {
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+
+.backend-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+}
+
+.status-dot-small {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot-small.ok {
+  background: var(--color-verified);
+}
+
+.status-dot-small.error {
+  background: var(--color-danger);
+}
+
+.status-dot-small.pending {
+  background: var(--color-gap);
+}
+
+/* --- Upload progress list --- */
+.upload-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.upload-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--color-ink-muted);
+  animation: fade-in-up 0.2s ease both;
+}
+
+.upload-progress-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-verified);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.upload-status-icon {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.upload-status-icon.ok {
+  background: var(--color-verified);
+}
+
+.upload-status-icon.error {
+  background: var(--color-danger);
 }

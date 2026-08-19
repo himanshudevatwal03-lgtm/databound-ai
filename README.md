@@ -12,13 +12,23 @@ This is not "chat with a PDF." The core guarantee of the product is:
 
 ---
 
-## Status: Phase 3 — Document Management ✅
+## Status: Phase 3 — Document Management ✅ (+ UI/UX interaction pass)
 
 Phase 1 set up the skeleton, Phase 2 added accounts. Phase 3 adds the
 "My Data" screen: upload TXT/PDF/CSV files, organize them into
 collections, and see what got extracted from each one (or why processing
 failed). This is the last phase before retrieval/AI features begin —
 Phase 4 turns this extracted content into searchable chunks.
+
+A follow-up pass made the frontend feel more alive: the Dashboard is now
+a real live view (animated stat counters, recent documents) instead of a
+static status page; actions surface toast notifications; deletes go
+through a confirm dialog; uploads show per-file progress; and lists,
+cards, and modals use small entrance/hover animations throughout. Every
+screen in this pass was visually verified with a real browser
+(Playwright) driving the actual running app, not just a code read-through
+— which is how a real bug (an incorrect "All Documents" count) got caught
+and fixed before shipping.
 
 ## Problem Statement
 
