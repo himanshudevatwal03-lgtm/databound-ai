@@ -28,6 +28,7 @@ from app.services.document_processing import (
     extract_content,
     validate_upload,
 )
+from app.services.indexing import index_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -96,6 +97,22 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
+    # Chunking + embedding (Phase 4): only runs when extraction actually
+    # produced usable content. Deliberately NOT allowed to fail the
+    # upload response — if indexing has trouble, the document still
+    # exists as "ready" with its extracted content intact; it's simply
+    # not searchable yet. Retrieval finding nothing for it is a safe
+    # failure mode (leads to "not enough information" in Phase 5+, not a
+    # wrong answer), so we surface the problem via processing_error
+    # rather than discarding the whole upload.
+    if document.status == "ready":
+        try:
+            index_document(db, document)
+        except Exception as e:
+            document.processing_error = f"Document was saved but indexing failed: {e}"
+            db.commit()
+            db.refresh(document)
+
     return _to_response(document)
 
 
@@ -129,9 +146,10 @@ def delete_document(
     current_user: User = Depends(get_current_user),
 ):
     document = _get_owned_document_or_404(db, document_id, current_user)
-    # A plain delete is sufficient for now: no chunks, conversations, or
-    # sources reference this document yet (those arrive in Phases 4/5/7),
-    # so there's nothing else that could be left orphaned. Once those
-    # tables exist, this becomes a cascading delete — tracked there.
+    # DocumentChunk rows are removed automatically by the database via
+    # ON DELETE CASCADE on document_chunks.document_id (see
+    # app/models/document_chunk.py) — no manual cleanup needed here.
+    # Conversations/sources will need the same treatment once those
+    # tables exist in Phases 5/7.
     db.delete(document)
     db.commit()

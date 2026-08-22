@@ -12,23 +12,27 @@ This is not "chat with a PDF." The core guarantee of the product is:
 
 ---
 
-## Status: Phase 3 — Document Management ✅ (+ UI/UX interaction pass)
+## Status: Phase 4 — Retrieval ✅
 
-Phase 1 set up the skeleton, Phase 2 added accounts. Phase 3 adds the
-"My Data" screen: upload TXT/PDF/CSV files, organize them into
-collections, and see what got extracted from each one (or why processing
-failed). This is the last phase before retrieval/AI features begin —
-Phase 4 turns this extracted content into searchable chunks.
+Phase 1 set up the skeleton, Phase 2 added accounts, Phase 3 added
+document upload/processing, and a follow-up pass made the frontend feel
+alive (live dashboard, toasts, confirm dialogs). Phase 4 makes documents
+actually *searchable*: every uploaded document is chunked, embedded, and
+stored in PostgreSQL via pgvector, and a semantic search endpoint returns
+the most relevant chunks for a query — with page/row citations attached.
+This is the "R" in RAG; Phase 5 adds the "AG" (an LLM that can only
+answer from what retrieval finds).
 
-A follow-up pass made the frontend feel more alive: the Dashboard is now
-a real live view (animated stat counters, recent documents) instead of a
-static status page; actions surface toast notifications; deletes go
-through a confirm dialog; uploads show per-file progress; and lists,
-cards, and modals use small entrance/hover animations throughout. Every
-screen in this pass was visually verified with a real browser
-(Playwright) driving the actual running app, not just a code read-through
-— which is how a real bug (an incorrect "All Documents" count) got caught
-and fixed before shipping.
+**A note on embeddings:** the default embedding provider is a local,
+dependency-free, deterministic hashing scheme — not a trained semantic
+model. It captures *lexical* similarity (shared words) well enough to
+prove the whole retrieval pipeline works with zero setup cost (no API
+key, no network call, works the instant you deploy), but it won't catch
+synonyms the way a real model would ("cat" and "feline" aren't related to
+it). Full explanation and tradeoffs are in
+[`app/services/embeddings.py`](backend/app/services/embeddings.py).
+Switching to real OpenAI embeddings is one env var away — see
+[Environment Variables](#environment-variables) below.
 
 ## Problem Statement
 
@@ -153,10 +157,11 @@ databound-ai/
 │   │   ├── main.py         # FastAPI app + router registration
 │   │   ├── config.py       # environment-driven settings
 │   │   ├── database/       # SQLAlchemy engine/session
-│   │   ├── models/         # User, Collection, Document
+│   │   ├── models/         # User, Collection, Document, DocumentChunk
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── api/            # health, auth, collections, documents
-│   │   ├── services/       # document_processing.py (validation + extraction)
+│   │   ├── api/            # health, auth, collections, documents, retrieval
+│   │   ├── services/       # document_processing, chunking, embeddings,
+│   │   │                   #   indexing, retrieval
 │   │   ├── core/           # security.py, deps.py (auth)
 │   │   └── utils/
 │   ├── tests/
@@ -286,7 +291,8 @@ Key ones for Phase 1:
 |-----------------|-----------------------------------------------|
 | `DATABASE_URL`  | PostgreSQL connection string                  |
 | `JWT_SECRET`    | Signing secret for auth tokens (Phase 2+)     |
-| `LLM_API_KEY`   | Provider API key for the LLM (Phase 5+)       |
+| `EMBEDDING_PROVIDER` | `local` (default, no key needed) or `openai` (real semantic embeddings) |
+| `LLM_API_KEY`   | Required if `EMBEDDING_PROVIDER=openai`; also used by the LLM in Phase 5+ |
 | `VITE_API_BASE_URL` | Backend URL the frontend calls          |
 
 ## API Documentation
@@ -305,6 +311,7 @@ Key ones for Phase 1:
 | GET    | `/api/documents`      | Yes         | List your documents (optional `?collection_id=`) |
 | GET    | `/api/documents/{id}` | Yes         | Get one document's metadata + preview         |
 | DELETE | `/api/documents/{id}` | Yes         | Delete a document                             |
+| GET    | `/api/retrieval/search` | Yes       | Semantic search over your indexed chunks (`?q=`, optional `document_id`/`collection_id`/`top_k`) |
 
 Full interactive docs are always available at `/docs` (Swagger) while the
 backend is running — including a working "Authorize" button so you can
@@ -319,12 +326,15 @@ cd backend
 pytest
 ```
 
-28 tests total: health checks, the full auth suite, and Phase 3's
-document/collection tests — upload + extraction correctness for all
-three file types, every validation error (bad extension, empty, oversized,
-malformed CSV, corrupted/fake PDF), listing, deletion, and cross-user
-isolation. Every later phase adds more, including — critically — explicit
-hallucination tests once question-answering exists (Phase 6).
+48 tests total: health checks, the full auth suite, document/collection
+management, and Phase 4's chunking (all three file-type strategies),
+embedding provider (determinism, normalization, and — the property that
+actually matters — shared words producing higher similarity than
+unrelated text), and end-to-end retrieval (upload → search → correct
+chunk + citation comes back, cross-user isolation, document/collection
+scoping, cascade delete removing chunks). Every later phase adds more,
+including — critically — explicit hallucination tests once
+question-answering exists (Phase 6).
 
 ## Development Roadmap
 
@@ -332,9 +342,10 @@ hallucination tests once question-answering exists (Phase 6).
       PostgreSQL, Docker, health check, basic frontend
 - [x] **Phase 2 — Authentication**: registration, login,
       JWT sessions, `get_current_user` dependency, protected frontend routes
-- [x] **Phase 3 — Document Management** (this state): upload,
+- [x] **Phase 3 — Document Management**: upload,
       TXT/PDF/CSV extraction, collections, document list/delete
-- [ ] Phase 4 — Retrieval (chunking, embeddings, pgvector)
+- [x] **Phase 4 — Retrieval** (this state): chunking, embeddings
+      (pluggable provider), pgvector storage, semantic search endpoint
 - [ ] Phase 5 — Core Question Answering
 - [ ] Phase 6 — Anti-Hallucination (validation + hallucination tests)
 - [ ] Phase 7 — Chat (conversations, follow-ups)
@@ -346,23 +357,34 @@ hallucination tests once question-answering exists (Phase 6).
 - [ ] Phase 13 — Docker & Deployment hardening
 - [ ] Phase 14 — Documentation
 
-## Limitations (current, Phase 3)
+## Limitations (current, Phase 4)
 
 - Original uploaded files aren't kept — only their *extracted* content is
   stored (see the comment at the top of `app/models/document.py` for why:
   Render's disk is ephemeral, Postgres isn't). There's no "download my
   original file" feature as a result.
-- Upload processing is synchronous (validate → extract → store, all in
-  one request). Fine for typical file sizes; a background job queue would
-  be the right upgrade if large files start making uploads feel slow.
-- No question-answering yet — documents are stored and processed, but
-  nothing can be asked about them until Phase 4 (chunking/embeddings) and
-  Phase 5 (the QA pipeline itself) exist.
+- The default embedding provider is lexical (word-overlap), not a
+  trained semantic model — see the note near the top of this README and
+  the docstring in `app/services/embeddings.py`. Good enough to prove the
+  pipeline and to exercise anti-hallucination behavior with reproducible
+  test data; a real model (via `EMBEDDING_PROVIDER=openai`) will retrieve
+  meaningfully better once you're past the "does this work at all" stage.
+- No question-answering yet — retrieval finds relevant chunks, but
+  nothing turns them into an answer until Phase 5 adds the LLM layer
+  (with Phase 6's validation on top, so it can't just guess).
+- Changing `EMBEDDING_DIMENSIONS` after documents are already indexed
+  doesn't resize the existing `vector` column or re-embed anything —
+  would need a migration + full re-index. Fine for now since it's set
+  once at first deploy and left alone.
+- No vector index (ivfflat/hnsw) on `document_chunks.embedding` yet —
+  fine at the row counts a single user will realistically hit in this
+  project, but would matter at real scale. Noted as a future improvement.
+- Indexing (chunk + embed + store) runs synchronously during upload, same
+  tradeoff as Phase 3's extraction — a background job queue is the right
+  upgrade once large documents make this noticeably slow.
 - Table creation uses `Base.metadata.create_all()` on startup rather than
   real migrations — tracked for a later phase once schema changes need to
   preserve existing data.
-- `pgvector` extension is available in the Postgres image but not yet used
-  by any table (arrives in Phase 4).
 
 ## Future Improvements
 

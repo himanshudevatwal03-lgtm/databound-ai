@@ -48,6 +48,24 @@ class Settings(BaseSettings):
     LLM_MODEL: str = Field(default="claude-sonnet-4-6")
     EMBEDDING_MODEL: str = Field(default="text-embedding-3-small")
 
+    # --- Embeddings (Phase 4) ---
+    # "local": a dependency-free, deterministic hashing-based embedding —
+    #   works immediately with no API key or cost, at the price of being
+    #   lexical (word-overlap) rather than truly semantic. See
+    #   app/services/embeddings.py for the full tradeoff explanation.
+    # "openai": real semantic embeddings via OpenAI's API. Requires
+    #   LLM_API_KEY to be set to an OpenAI key.
+    EMBEDDING_PROVIDER: str = Field(default="local")
+    # Fixed at table-creation time (see app/models/document_chunk.py) —
+    # changing this after documents have already been indexed requires
+    # re-indexing everything, since existing vectors would have the old
+    # dimensionality. Tracked as a limitation for now (no migrations yet).
+    EMBEDDING_DIMENSIONS: int = 384
+
+    # --- Chunking (Phase 4) ---
+    CHUNK_SIZE: int = 800  # target characters per chunk
+    CHUNK_OVERLAP: int = 100  # characters of overlap between consecutive chunks
+
     # --- Retrieval tuning (used starting Phase 4/5) ---
     TOP_K: int = 5
     SIMILARITY_THRESHOLD: float = 0.75

@@ -18,9 +18,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
-from app.api import auth, collections, documents, health
+from app.api import auth, collections, documents, health, retrieval
 from app.database.session import Base, engine
 from app import models  # noqa: F401 — registers models with Base.metadata
 
@@ -28,12 +29,22 @@ from app import models  # noqa: F401 — registers models with Base.metadata
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Runs once at startup: creates any tables that don't exist yet, based
-    on every model imported via app.models. This is a Phase 2 shortcut —
-    fine for early development, but a real migration tool (Alembic) is
-    the right call once the schema needs to evolve without dropping data.
-    Tracked for a later phase.
+    Runs once at startup:
+      1. Ensures the pgvector extension is enabled — this MUST happen
+         before create_all(), since document_chunks.embedding uses
+         pgvector's `vector` column type and table creation would fail
+         without the extension already present.
+      2. Creates any tables that don't exist yet, based on every model
+         imported via app.models.
+
+    Table creation via create_all() is a shortcut appropriate for early
+    development; a real migration tool (Alembic) is the right call once
+    the schema needs to evolve without dropping data. Tracked for a later
+    phase.
     """
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.commit()
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -45,7 +56,7 @@ app = FastAPI(
         "Answers are generated only from user-provided documents, with "
         "verifiable source citations."
     ),
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -69,6 +80,7 @@ app.include_router(health.router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(collections.router, prefix=settings.API_V1_PREFIX)
 app.include_router(documents.router, prefix=settings.API_V1_PREFIX)
+app.include_router(retrieval.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")
