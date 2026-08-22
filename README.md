@@ -12,16 +12,27 @@ This is not "chat with a PDF." The core guarantee of the product is:
 
 ---
 
-## Status: Phase 4 — Retrieval ✅
+## Status: Phase 5 — Core Question Answering ✅
 
-Phase 1 set up the skeleton, Phase 2 added accounts, Phase 3 added
-document upload/processing, and a follow-up pass made the frontend feel
-alive (live dashboard, toasts, confirm dialogs). Phase 4 makes documents
-actually *searchable*: every uploaded document is chunked, embedded, and
-stored in PostgreSQL via pgvector, and a semantic search endpoint returns
-the most relevant chunks for a query — with page/row citations attached.
-This is the "R" in RAG; Phase 5 adds the "AG" (an LLM that can only
-answer from what retrieval finds).
+Phases 1-4 built accounts, document upload/processing, and semantic
+retrieval. Phase 5 adds the piece that turns retrieval into an actual
+answer: `POST /api/questions` runs the full grounded pipeline (retrieve →
+relevance threshold → strict grounded prompt → LLM → answer + citations)
+and the frontend's **Chat** page is now real — ask a question about your
+uploaded documents and get back an answer with a clear "Supported by
+provided data" / "Not found in your documents" badge and expandable
+source citations.
+
+**Important — this needs your own Anthropic API key to actually generate
+answers.** Retrieval (Phase 4) works with zero configuration, but
+generating an answer from what's retrieved requires calling a real LLM,
+and I don't have a key to give you. Without one, asking a question
+returns a clear `503` explaining exactly what's missing — verified
+end-to-end (see the Testing section) — rather than crashing or hanging.
+To make Chat actually answer: get an API key at
+[console.anthropic.com](https://console.anthropic.com), then set
+`LLM_API_KEY` in Render's dashboard for `databound-backend` (Environment
+tab). No code or redeploy needed — the app reads it at request time.
 
 **A note on embeddings:** the default embedding provider is a local,
 dependency-free, deterministic hashing scheme — not a trained semantic
@@ -139,10 +150,13 @@ Phase 2, `documents`/`document_chunks` in Phases 3–4, `notes`/`bookmarks`/
 databound-ai/
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # Navbar, UploadBox, DocumentCard, CollectionCard, Modal, ...
-│   │   ├── pages/         # Dashboard, Documents, Login, Register
+│   │   ├── components/   # Navbar, UploadBox, DocumentCard, CollectionCard,
+│   │   │                 #   Modal, AnimatedNumber, ConfirmDialog, Skeleton,
+│   │   │                 #   ToastContainer, ChatWindow, ChatMessage,
+│   │   │                 #   AnswerCard, SourceCard, DocumentSelector, ...
+│   │   ├── pages/         # Dashboard, Documents, Chat, Login, Register
 │   │   ├── services/      # api.js — all backend calls live here
-│   │   ├── context/        # AuthContext
+│   │   ├── context/        # AuthContext, ToastContext
 │   │   ├── hooks/
 │   │   ├── utils/
 │   │   ├── App.jsx
@@ -159,9 +173,9 @@ databound-ai/
 │   │   ├── database/       # SQLAlchemy engine/session
 │   │   ├── models/         # User, Collection, Document, DocumentChunk
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── api/            # health, auth, collections, documents, retrieval
+│   │   ├── api/            # health, auth, collections, documents, retrieval, questions
 │   │   ├── services/       # document_processing, chunking, embeddings,
-│   │   │                   #   indexing, retrieval
+│   │   │                   #   indexing, retrieval, llm, qa
 │   │   ├── core/           # security.py, deps.py (auth)
 │   │   └── utils/
 │   ├── tests/
@@ -292,7 +306,8 @@ Key ones for Phase 1:
 | `DATABASE_URL`  | PostgreSQL connection string                  |
 | `JWT_SECRET`    | Signing secret for auth tokens (Phase 2+)     |
 | `EMBEDDING_PROVIDER` | `local` (default, no key needed) or `openai` (real semantic embeddings) |
-| `LLM_API_KEY`   | Required if `EMBEDDING_PROVIDER=openai`; also used by the LLM in Phase 5+ |
+| `LLM_API_KEY`   | **Required for Chat to work.** A real Anthropic API key (get one at console.anthropic.com). Also used for embeddings if `EMBEDDING_PROVIDER=openai`. |
+| `LLM_MODEL`     | Anthropic model name (default `claude-sonnet-4-6`) |
 | `VITE_API_BASE_URL` | Backend URL the frontend calls          |
 
 ## API Documentation
@@ -312,6 +327,7 @@ Key ones for Phase 1:
 | GET    | `/api/documents/{id}` | Yes         | Get one document's metadata + preview         |
 | DELETE | `/api/documents/{id}` | Yes         | Delete a document                             |
 | GET    | `/api/retrieval/search` | Yes       | Semantic search over your indexed chunks (`?q=`, optional `document_id`/`collection_id`/`top_k`) |
+| POST   | `/api/questions`      | Yes         | Ask a grounded question; returns `{answer, supported, sources}` (needs `LLM_API_KEY`) |
 
 Full interactive docs are always available at `/docs` (Swagger) while the
 backend is running — including a working "Authorize" button so you can
@@ -326,15 +342,18 @@ cd backend
 pytest
 ```
 
-48 tests total: health checks, the full auth suite, document/collection
-management, and Phase 4's chunking (all three file-type strategies),
-embedding provider (determinism, normalization, and — the property that
-actually matters — shared words producing higher similarity than
-unrelated text), and end-to-end retrieval (upload → search → correct
-chunk + citation comes back, cross-user isolation, document/collection
-scoping, cascade delete removing chunks). Every later phase adds more,
-including — critically — explicit hallucination tests once
-question-answering exists (Phase 6).
+57 tests total: health checks, auth, document/collection management,
+chunking, embeddings, retrieval, and Phase 5's QA pipeline — with the
+LLM provider mocked so these run deterministically without a real API
+key. The mocked tests still verify everything that matters: Layer 1's
+relevance threshold correctly skipping the LLM call entirely when
+nothing's relevant, the grounded context actually containing the right
+chunk text, the model declining verbatim being reported as
+`supported: false`, answer-style affecting the prompt, ownership checks,
+and — separately, with no mock — that an unconfigured `LLM_API_KEY`
+returns a clean `503` rather than crashing. Every later phase adds more,
+including — critically — explicit hallucination tests once Phase 6's
+post-hoc validation exists.
 
 ## Development Roadmap
 
@@ -344,10 +363,11 @@ question-answering exists (Phase 6).
       JWT sessions, `get_current_user` dependency, protected frontend routes
 - [x] **Phase 3 — Document Management**: upload,
       TXT/PDF/CSV extraction, collections, document list/delete
-- [x] **Phase 4 — Retrieval** (this state): chunking, embeddings
+- [x] **Phase 4 — Retrieval**: chunking, embeddings
       (pluggable provider), pgvector storage, semantic search endpoint
-- [ ] Phase 5 — Core Question Answering
-- [ ] Phase 6 — Anti-Hallucination (validation + hallucination tests)
+- [x] **Phase 5 — Core Question Answering** (this state): grounded
+      LLM answer pipeline, source citations, real Chat page
+- [ ] Phase 6 — Anti-Hallucination (post-hoc answer validation + explicit hallucination tests) (validation + hallucination tests)
 - [ ] Phase 7 — Chat (conversations, follow-ups)
 - [ ] Phase 8 — Personal Knowledge Features (notes, bookmarks, tags, export)
 - [ ] Phase 9 — Advanced Data Features (summaries, comparison)
@@ -357,34 +377,34 @@ question-answering exists (Phase 6).
 - [ ] Phase 13 — Docker & Deployment hardening
 - [ ] Phase 14 — Documentation
 
-## Limitations (current, Phase 4)
+## Limitations (current, Phase 5)
 
-- Original uploaded files aren't kept — only their *extracted* content is
-  stored (see the comment at the top of `app/models/document.py` for why:
-  Render's disk is ephemeral, Postgres isn't). There's no "download my
-  original file" feature as a result.
+- **Chat needs `LLM_API_KEY` set to a real Anthropic key to actually
+  generate answers** — see the note near the top of this README. Without
+  it, questions return a clear 503 rather than an answer.
+- Chat is session-only — conversation history lives in React state and is
+  lost on refresh. Persisted conversations with real follow-up context
+  arrive in Phase 7.
+- No post-hoc answer validation yet (Anti-Hallucination Layer 3) — Phase
+  5 relies on retrieval's relevance threshold (Layer 1) plus the LLM
+  following strict grounding instructions (Layer 2). As the calibration
+  note in `app/config.py` explains, Layer 1 alone can't distinguish
+  "same topic" from "actually answers the question" when using the local
+  lexical embedding provider — closing that gap with an independent
+  check is exactly what Phase 6 adds, along with explicit hallucination
+  tests.
 - The default embedding provider is lexical (word-overlap), not a
-  trained semantic model — see the note near the top of this README and
-  the docstring in `app/services/embeddings.py`. Good enough to prove the
-  pipeline and to exercise anti-hallucination behavior with reproducible
-  test data; a real model (via `EMBEDDING_PROVIDER=openai`) will retrieve
-  meaningfully better once you're past the "does this work at all" stage.
-- No question-answering yet — retrieval finds relevant chunks, but
-  nothing turns them into an answer until Phase 5 adds the LLM layer
-  (with Phase 6's validation on top, so it can't just guess).
-- Changing `EMBEDDING_DIMENSIONS` after documents are already indexed
-  doesn't resize the existing `vector` column or re-embed anything —
-  would need a migration + full re-index. Fine for now since it's set
-  once at first deploy and left alone.
+  trained semantic model — see `app/services/embeddings.py`.
+- Original uploaded files aren't kept — only their *extracted* content is
+  stored (Render's disk is ephemeral, Postgres isn't).
 - No vector index (ivfflat/hnsw) on `document_chunks.embedding` yet —
-  fine at the row counts a single user will realistically hit in this
-  project, but would matter at real scale. Noted as a future improvement.
-- Indexing (chunk + embed + store) runs synchronously during upload, same
-  tradeoff as Phase 3's extraction — a background job queue is the right
-  upgrade once large documents make this noticeably slow.
+  fine at the row counts a single user will realistically hit here, but
+  would matter at real scale.
+- Indexing and question-answering both run synchronously within the
+  request — fine for typical document sizes and single questions; a
+  background job queue would be the right upgrade at real scale.
 - Table creation uses `Base.metadata.create_all()` on startup rather than
-  real migrations — tracked for a later phase once schema changes need to
-  preserve existing data.
+  real migrations.
 
 ## Future Improvements
 

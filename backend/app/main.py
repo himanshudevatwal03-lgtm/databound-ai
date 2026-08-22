@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.config import settings
-from app.api import auth, collections, documents, health, retrieval
+from app.api import auth, collections, documents, health, questions, retrieval
 from app.database.session import Base, engine
 from app import models  # noqa: F401 — registers models with Base.metadata
 
@@ -56,7 +56,7 @@ app = FastAPI(
         "Answers are generated only from user-provided documents, with "
         "verifiable source citations."
     ),
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -81,6 +81,7 @@ app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(collections.router, prefix=settings.API_V1_PREFIX)
 app.include_router(documents.router, prefix=settings.API_V1_PREFIX)
 app.include_router(retrieval.router, prefix=settings.API_V1_PREFIX)
+app.include_router(questions.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

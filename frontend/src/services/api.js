@@ -134,6 +134,25 @@ export function deleteDocument(documentId) {
   return request(`/api/documents/${documentId}`, { method: "DELETE" });
 }
 
+// --- Questions ---
+
+/**
+ * Asks a grounded question. Scoping to a specific document or collection
+ * is optional — omit both to search across everything the user has
+ * uploaded. answer_style is one of "short" | "detailed" | "bullet_points" | "simple".
+ */
+export function askQuestion({ question, documentId, collectionId, answerStyle = "detailed" }) {
+  return request("/api/questions", {
+    method: "POST",
+    body: JSON.stringify({
+      question,
+      document_id: documentId ?? null,
+      collection_id: collectionId ?? null,
+      answer_style: answerStyle,
+    }),
+  });
+}
+
 /**
  * Uploads a file. Doesn't use the generic request() helper because file
  * uploads need multipart/form-data (the browser sets the correct

@@ -22,7 +22,7 @@ export default function Navbar() {
         </Link>
         <nav className="nav-links">
           <Link to="/documents">Documents</Link>
-          <span>Chat</span>
+          <Link to="/chat">Chat</Link>
           <span>Notes</span>
           <span>Study</span>
         </nav>

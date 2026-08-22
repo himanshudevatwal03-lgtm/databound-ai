@@ -37,6 +37,11 @@ services:
       #   https://databound-frontend.onrender.com
       - key: CORS_ORIGINS
         value: http://localhost:5173
+      # REQUIRED for Chat (POST /api/questions) to generate answers, as of
+      # Phase 5. Render will prompt for this value when applying the
+      # Blueprint since sync: false means it's not stored in the repo —
+      # get a key at console.anthropic.com. Retrieval/search works fine
+      # without it.
       - key: LLM_API_KEY
         sync: false
       - key: LLM_MODEL
@@ -54,7 +59,7 @@ services:
       - key: TOP_K
         value: "5"
       - key: SIMILARITY_THRESHOLD
-        value: "0.75"
+        value: "0.3"
       - key: MAX_FILE_SIZE
         value: "20971520"
 

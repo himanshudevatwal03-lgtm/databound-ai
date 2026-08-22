@@ -68,7 +68,19 @@ class Settings(BaseSettings):
 
     # --- Retrieval tuning (used starting Phase 4/5) ---
     TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.75
+    # Calibrated empirically against the LOCAL embedding provider (see
+    # app/services/embeddings.py), where genuinely relevant matches
+    # typically score ~0.4-0.75 and clearly unrelated text scores ~0.2.
+    # A threshold here only screens out obviously-irrelevant chunks
+    # (Anti-Hallucination Layer 1) — it can't distinguish "same topic" from
+    # "actually answers the question" (e.g. a chunk about Rahul's CGPA
+    # scores similarly whether asked about his CGPA or his father's name).
+    # That's why Layer 2 (the strict grounded prompt) and Phase 6's Layer 3
+    # (post-hoc answer validation) both matter — retrieval alone isn't
+    # enough. If you switch to EMBEDDING_PROVIDER=openai, raise this back
+    # toward 0.6-0.75; real semantic embeddings separate relevant from
+    # irrelevant content more sharply than this lexical fallback does.
+    SIMILARITY_THRESHOLD: float = 0.3
 
     # --- File handling ---
     MAX_FILE_SIZE: int = 20 * 1024 * 1024  # 20 MB
